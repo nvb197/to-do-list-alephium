@@ -1,11 +1,13 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import * as dotenv from 'dotenv'
+import path from 'path'
 import mongoose from 'mongoose'
 import { web3, NodeProvider } from '@alephium/web3'
 import { PrivateKeyWallet } from '@alephium/web3-wallet'
 
-dotenv.config()
+// .env is at project root (one level up from backend/)
+dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
 const app = express()
 app.use(cors())

@@ -15,7 +15,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { web3, NodeProvider, convertAlphAmountWithDecimals, ONE_ALPH, contractIdFromAddress, binToHex } from '@alephium/web3'
+import { web3, NodeProvider, convertAlphAmountWithDecimals, ONE_ALPH, contractIdFromAddress, binToHex, groupOfAddress } from '@alephium/web3'
 import { HackathonEscrow } from '@artifacts/HackathonEscrow'
 import { WithdrawScript, ForfeitScript } from '@artifacts/scripts'
 
@@ -92,8 +92,18 @@ export async function createTaskOnChain({ title, deadline, alphAmount, failMode,
     console.log('[contractApi] Déploiement HackathonEscrow :', { title, alphAmount, failMode, beneficiary })
 
     // ── Étape 1 : Déploiement du contrat ──────────────────────────────────────
-    // Le 3ème argument (0) = groupe de déploiement. Obligatoire quand le wallet
-    // a une adresse "gl-secp256k1" (groupless). Correspond à addressGroup: 0 du wallet provider.
+    // On récupère dynamiquement le groupe de l'adresse du wallet de l'utilisateur.
+    // Crucial : si on force le groupe 0 et que le wallet est en groupe 1/2/3,
+    // Alephium rejette la tx avec InvalidOutputGroupIndex.
+    let deploymentGroup
+    try {
+        deploymentGroup = groupOfAddress(ownerAddress)
+        console.log('[contractApi] Groupe détecté depuis l\'adresse owner :', deploymentGroup)
+    } catch {
+        deploymentGroup = 0
+        console.warn('[contractApi] Impossible de détecter le groupe → fallback groupe 0')
+    }
+
     const deployResult = await HackathonEscrow.deploy(signer, {
         initialFields: {
             owner: ownerAddress,
@@ -102,7 +112,7 @@ export async function createTaskOnChain({ title, deadline, alphAmount, failMode,
         },
         // Le contrat reçoit le stake de l'user + le dépôt de stockage obligatoire
         initialAttoAlphAmount: attoAlphToLock + STORAGE_DEPOSIT,
-    }, 0)
+    }, deploymentGroup)
 
     const { txId } = deployResult
     const contractAddress = deployResult.contractInstance.address

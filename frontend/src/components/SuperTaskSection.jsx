@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trophy, Plus, Loader2, Zap, CheckCircle2, XCircle, Flame, Skull, Wallet } from 'lucide-react'
+import { Trophy, Plus, Loader2, Zap, CheckCircle2, XCircle, Flame, Wallet } from 'lucide-react'
 import { useWallet } from '@alephium/web3-react'
 
 /* ─── Failure modes available for a Super Task ──────────────────────────── */
@@ -10,13 +10,6 @@ const SUPER_FAIL_MODES = [
         description: 'Send ALPH to the creators to help improve this platform.',
         icon: Flame,
         color: '#f59e0b',
-    },
-    {
-        id: 'burn',
-        label: 'Burn ALPH',
-        description: 'Permanently destroy your tokens to increase global scarcity. 🔥',
-        icon: Skull,
-        color: '#ef4444',
     },
 ]
 

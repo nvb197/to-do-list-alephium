@@ -1,7 +1,7 @@
 import { useState, forwardRef, useRef } from 'react'
 import DatePicker from 'react-datepicker'
 import { fr } from 'date-fns/locale'
-import { Loader2, Flame, Coins, Skull, Plus, CalendarDays, Wallet } from 'lucide-react'
+import { Loader2, Flame, Coins, Plus, CalendarDays, Wallet } from 'lucide-react'
 import { useWallet } from '@alephium/web3-react'
 
 import 'react-datepicker/dist/react-datepicker.css'
@@ -21,13 +21,6 @@ const FAIL_MODES = [
         description: 'Send ALPH to the creators to help improve this platform.',
         icon: Flame,
         color: '#f59e0b',
-    },
-    {
-        id: 'burn',
-        label: 'Burn ALPH',
-        description: 'Permanently destroy your tokens to increase global scarcity. 🔥',
-        icon: Skull,
-        color: '#ef4444',
     },
 ]
 

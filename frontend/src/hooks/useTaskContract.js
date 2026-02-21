@@ -61,7 +61,7 @@ export function useTaskContract() {
     const createTask = useCallback(async ({ title, deadline, alphAmount, failMode }) => {
         setIsCreatingTask(true)
         try {
-            const { txId, contractAddress } = await createTaskOnChain({
+            const { txId, contractAddress, taskId: backendTaskId } = await createTaskOnChain({
                 title,
                 deadline,
                 alphAmount,
@@ -71,12 +71,13 @@ export function useTaskContract() {
 
             const newTask = {
                 id: generateId(),
+                backendTaskId,     // ← ID MongoDB retourné par le backend
                 title,
                 deadline,
                 alphAmount: parseFloat(alphAmount),
                 failMode,
                 txId,
-                contractAddress,   // ← On-chain address of the HackathonEscrow contract
+                contractAddress,   // ← Adresse du contrat HackathonEscrow déployé
                 createdAt: new Date().toISOString(),
                 status: 'active',
             }
@@ -114,6 +115,7 @@ export function useTaskContract() {
 
             const txId = await validateTaskOnChain({
                 contractAddress: task.contractAddress,
+                taskId: task.backendTaskId,
                 signer,
             })
 
@@ -160,8 +162,8 @@ export function useTaskContract() {
         try {
             const task = activeTasks.find((t) => t.id === taskId)
             const txId = await failTaskOnChain({
-                taskId,
                 contractAddress: task?.contractAddress,
+                taskId: task?.backendTaskId,
                 signer,
             })
 
@@ -228,8 +230,26 @@ export function useTaskContract() {
         if (!superTask) return
         setLoadingSuperTaskAction('validate')
         try {
-            const txId = await failTaskOnChain({ taskId: superTask.id })
-            // ✅ Claim the pool: mark every unclaimed pool entry so the derived balance resets to 0
+            // Appel au backend → admin signe releaseToWinner(userAddress) sur le CagnotteVault
+            let txId = `local_super_success_${Date.now()}`
+            try {
+                const signerAccount = signer ? await signer.getSelectedAccount() : null
+                const userAddress = signerAccount?.address
+                if (userAddress) {
+                    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/release-reward`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userAddress }),
+                    })
+                    const data = await res.json()
+                    if (data.txId) txId = data.txId
+                    console.log('[validateSuperTask] Vault released! txId:', txId)
+                }
+            } catch (releaseErr) {
+                console.warn('[validateSuperTask] release-reward non bloquant:', releaseErr.message)
+            }
+
+            // ✅ Claim the pool in UI
             setHistory((h) => [
                 {
                     ...superTask,
@@ -252,7 +272,7 @@ export function useTaskContract() {
         } finally {
             setLoadingSuperTaskAction(null)
         }
-    }, [superTask, showNotification])
+    }, [superTask, signer, showNotification])
 
     // ─────────────────────────────────────────────────────────────────────────
     // failSuperTask — Mark the Super Task as failed, reset state
@@ -261,7 +281,8 @@ export function useTaskContract() {
         if (!superTask) return
         setLoadingSuperTaskAction('fail')
         try {
-            const txId = await failTaskOnChain({ taskId: superTask.id })
+            // La Super Task est locale — pas de contrat on-chain
+            const txId = `local_super_fail_${Date.now()}`
             // 💀 Pool is lost: mark all unclaimed pool entries so the derived balance resets to 0
             setHistory((h) => [
                 {

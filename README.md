@@ -6,6 +6,16 @@ AlphTask is a Web3 productivity app built on the **Alephium blockchain (Testnet)
 
 ---
 
+## 🚀 Why AlphTask? (For the Jury)
+
+AlphTask isn't just a To-Do list; it's a **behavioral economic tool** built on Web3 primitives.
+- **Accountability via Proof-of-Stake**: We use smart contracts not for DeFi yield, but to stake capital on human execution. 
+- **Dynamic Asset Routing**: Failed tasks don't just "burn" tokens. Users decide if their failure benefits the open-source community ("Support the Devs") or fuels their own ultimate goals ("Super Task Pool").
+- **Seamless Alephium Integration**: Fully on-chain, utilizing Alephium's stateful UTXO model (sUTXO), TxScripts, and wallet standard for a smooth, transparent, and decentralized escrow experience.
+- **Production-Ready UX**: Integrated with a robust backend to handle off-chain indexing (MongoDB) while maintaining 100% on-chain custody of funds.
+
+---
+
 ## 🧪 Testing the App — Complete Guide
 
 This guide is for anyone who just cloned the project and wants to run it locally. No errors should occur if you follow the steps in order.
@@ -72,35 +82,21 @@ This is the only manual step. You need the Alephium wallet browser extension to 
 
 ---
 
-### Step 4 — Run the App
+### Step 4 — Run the App (One Command)
 
-Open **two terminals** in the project root.
+We optimized the developer experience. You can run both the Frontend and the Backend simultaneously with a single command.
 
-**Terminal 1 — Start the backend:**
+Open **one terminal** in the project root:
 
 ```bash
 cd /path/to/to-do-list-alephium
-npm run start
-```
-
-You should see:
-```
-🚀 Registrar Server running on port 3001
-🟢 MongoDB Connected!
-```
-
-**Terminal 2 — Start the frontend:**
-
-```bash
-cd /path/to/to-do-list-alephium/frontend
 npm run dev
 ```
 
-You should see:
-```
-  VITE ready in ...ms
-  ➜  Local:   http://localhost:5173/
-```
+You should see logs from both `[dev:backend]` and `[dev:frontend]` appearing in the same terminal. Make sure you see:
+- `🚀 Registrar Server running on port 3001`
+- `🟢 MongoDB Connected!`
+- `VITE ready in ...ms`
 
 **Open your browser** and navigate to: **http://localhost:5173**
 

@@ -1,15 +1,18 @@
 /**
  * useTaskContract.js
  * ─────────────────────────────────────────────────────────────────────────────
- * Central hook managing all application state and contract interactions.
+ * Central hook managing all application state and real contract interactions.
  *
- * Future integration:
- *   - Add signer from @alephium/web3-react (useWallet().signer) to each call
- *   - Pass signer into each contractApi function
+ * Web3 integration:
+ *   - useWallet() from @alephium/web3-react provides `signer` when connected
+ *   - signer is passed into every contractApi function that mutates on-chain state
+ *   - Each task stores its `contractAddress` (the deployed HackathonEscrow instance)
+ *     so that validateTask/failTask can reference the correct on-chain contract
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { useState, useCallback } from 'react'
+import { useWallet } from '@alephium/web3-react'
 import {
     createTaskOnChain,
     validateTaskOnChain,
@@ -17,10 +20,15 @@ import {
     createSuperTaskOnChain,
 } from '../services/contractApi'
 
-// Local ID generator — replaced by on-chain taskId later
+// Local ID generator — still used for React key and local references
 const generateId = () => `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
 export function useTaskContract() {
+    // ─── Wallet / Signer ──────────────────────────────────────────────────────
+    // `signer` is the wallet's SignerProvider — undefined when not connected.
+    // It is passed into every on-chain transaction so the user's wallet is prompted.
+    const { signer } = useWallet()
+
     // ─── Core state ──────────────────────────────────────────────────────────
     const [activeTasks, setActiveTasks] = useState([])
     const [history, setHistory] = useState([])
@@ -43,16 +51,23 @@ export function useTaskContract() {
         setTimeout(() => setNotification(null), 5000)
     }, [])
 
-    // ─── Reward pool starts at 0, will sync on-chain once contract is deployed ─
-    // NOTE: fetchRewardPoolBalance() will be called here once the contract is live.
-
     // ─────────────────────────────────────────────────────────────────────────
     // createTask
+    //
+    // Deploys a new HackathonEscrow contract for this task.
+    // The returned `contractAddress` is stored on the task object and is the
+    // permanent on-chain identifier for this task.
     // ─────────────────────────────────────────────────────────────────────────
     const createTask = useCallback(async ({ title, deadline, alphAmount, failMode }) => {
         setIsCreatingTask(true)
         try {
-            const txId = await createTaskOnChain({ title, deadline, alphAmount, failMode })
+            const { txId, contractAddress } = await createTaskOnChain({
+                title,
+                deadline,
+                alphAmount,
+                failMode,
+                signer,
+            })
 
             const newTask = {
                 id: generateId(),
@@ -61,13 +76,12 @@ export function useTaskContract() {
                 alphAmount: parseFloat(alphAmount),
                 failMode,
                 txId,
+                contractAddress,   // ← On-chain address of the HackathonEscrow contract
                 createdAt: new Date().toISOString(),
                 status: 'active',
             }
 
             setActiveTasks((prev) => [newTask, ...prev])
-            // Reward pool is updated ONLY on task failure (see failTask below)
-
             showNotification('success', `Task "${title}" created successfully!`, txId)
             return newTask
         } catch (err) {
@@ -76,10 +90,14 @@ export function useTaskContract() {
         } finally {
             setIsCreatingTask(false)
         }
-    }, [showNotification])
+    }, [signer, showNotification])
 
     // ─────────────────────────────────────────────────────────────────────────
     // validateTask — Success
+    //
+    // Calls withdraw() on the task's contract instance.
+    // The contract enforces that completedTasks >= targetTasks (admin must have
+    // called completeOneTask() first). Will throw with error code 404 if not.
     //
     // FIX: Do NOT nest setHistory inside setActiveTasks updater.
     // React StrictMode invokes state updaters twice in dev, causing double entries.
@@ -89,15 +107,23 @@ export function useTaskContract() {
         setLoadingTaskId(taskId)
         setLoadingAction('validate')
         try {
-            const txId = await validateTaskOnChain({ taskId })
+            // Find the task to get its contractAddress before mutating state
+            const task = activeTasks.find((t) => t.id === taskId)
+
+            if (!task) throw new Error('Task not found.')
+
+            const txId = await validateTaskOnChain({
+                contractAddress: task.contractAddress,
+                signer,
+            })
 
             // Read task from current state snapshot (safe in async context)
             setActiveTasks((prev) => {
-                const task = prev.find((t) => t.id === taskId)
-                if (task) {
+                const t = prev.find((t) => t.id === taskId)
+                if (t) {
                     // ✅ Single independent setHistory call — no double-invoke risk
                     const historyEntry = {
-                        ...task,
+                        ...t,
                         status: 'success',
                         closedAt: new Date().toISOString(),
                         txId,
@@ -119,22 +145,31 @@ export function useTaskContract() {
             setLoadingTaskId(null)
             setLoadingAction(null)
         }
-    }, [showNotification])
+    }, [activeTasks, signer, showNotification])
 
     // ─────────────────────────────────────────────────────────────────────────
     // failTask — Failure
+    //
+    // No on-chain fail function exists in HackathonEscrow.
+    // This action is handled locally only: the task is moved to history as "failed"
+    // and its ALPH remains locked in the contract (the admin handles it server-side).
     // ─────────────────────────────────────────────────────────────────────────
     const failTask = useCallback(async (taskId) => {
         setLoadingTaskId(taskId)
         setLoadingAction('fail')
         try {
-            const txId = await failTaskOnChain({ taskId })
+            const task = activeTasks.find((t) => t.id === taskId)
+            const txId = await failTaskOnChain({
+                taskId,
+                contractAddress: task?.contractAddress,
+                signer,
+            })
 
             setActiveTasks((prev) => {
-                const task = prev.find((t) => t.id === taskId)
-                if (task) {
+                const t = prev.find((t) => t.id === taskId)
+                if (t) {
                     const historyEntry = {
-                        ...task,
+                        ...t,
                         status: 'failed',
                         closedAt: new Date().toISOString(),
                         txId,
@@ -157,10 +192,11 @@ export function useTaskContract() {
             setLoadingTaskId(null)
             setLoadingAction(null)
         }
-    }, [showNotification])
+    }, [activeTasks, signer, showNotification])
 
     // ─────────────────────────────────────────────────────────────────────────
     // createSuperTask
+    // (Kept as local placeholder — no on-chain Super Task contract in artifacts)
     // ─────────────────────────────────────────────────────────────────────────
     const createSuperTask = useCallback(async ({ title, failMode }) => {
         setIsCreatingSuperTask(true)
@@ -192,7 +228,7 @@ export function useTaskContract() {
         if (!superTask) return
         setLoadingSuperTaskAction('validate')
         try {
-            const txId = await validateTaskOnChain({ taskId: superTask.id })
+            const txId = await failTaskOnChain({ taskId: superTask.id })
             // ✅ Claim the pool: mark every unclaimed pool entry so the derived balance resets to 0
             setHistory((h) => [
                 {

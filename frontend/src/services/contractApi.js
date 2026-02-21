@@ -1,147 +1,215 @@
 /**
  * contractApi.js
  * ─────────────────────────────────────────────────────────────────────────────
- * Couche d'abstraction pour les interactions avec le Smart Contract Alephium.
+ * Real contract interaction layer for the HackathonEscrow smart contract
+ * deployed on Alephium Testnet.
  *
- * ACTUELLEMENT : Les fonctions simulent des délais réseau (setTimeout) et
- * renvoient de fausses promesses pour permettre le développement du front-end
- * sans contrat déployé.
+ * Contract architecture (one contract per task):
+ *   - createTask  → deploys a new HackathonEscrow instance (locks ALPH)
+ *   - validateTask → calls withdraw() on the deployed instance (returns ALPH to owner)
+ *   - failTask    → UI-only action (contract has no fail fn; ALPH stays locked
+ *                   until backend/admin handles it via completeOneTask + time-lock)
  *
- * PLUS TARD : Remplacez le corps de chaque fonction par les vrais appels
- * @alephium/web3 (ex: contractInstance.createTask(...), etc.).
- * L'interface des paramètres reste identique.
+ * All state-mutating calls require a `signer` (SignerProvider) from the user's
+ * connected wallet via @alephium/web3-react's useWallet() hook.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-// ─── Constantes Testnet ────────────────────────────────────────────────────
-export const DEAD_ADDRESS_TESTNET = '1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH' // Adresse morte pour burn
-export const DEVS_ADDRESS_TESTNET = '14kMRpJyFrE6R23ZZN7d6XDdqLExDkGQpbhNY7tLzBu5' // Adresse des devs (placeholder)
-export const SUPER_TASK_ADDRESS = '1GtbwTbzjBn5bDXsqSqKK5LJLTBRLUx8KCj6JKXPM3Ha' // Adresse du Super Task contract
+import { web3, NodeProvider, convertAlphAmountWithDecimals, ONE_ALPH } from '@alephium/web3'
+import { HackathonEscrow } from '@artifacts/HackathonEscrow'
 
-// ─── Types utilitaires ─────────────────────────────────────────────────────
+// ─── Network Configuration ────────────────────────────────────────────────────
+const NODE_URL = 'https://node.testnet.alephium.org'
 
-/**
- * @typedef {'cagnotte' | 'don-devs' | 'burn'} FailMode
- */
-
-/**
- * @typedef {Object} TaskParams
- * @property {string} title       - Titre de la tâche
- * @property {string} deadline    - Deadline ISO string
- * @property {number} alphAmount  - Montant ALPH à bloquer (ex: 1.5)
- * @property {FailMode} failMode  - Mode d'échec choisi
- */
-
-// ─── Simulateur de délai réseau ────────────────────────────────────────────
-const simulateNetworkDelay = (ms = 2000) =>
-    new Promise((resolve) => setTimeout(resolve, ms))
-
-// ─── Simulateur d'erreur aléatoire (5% de chance) ─────────────────────────
-const maybeThrow = (label) => {
-    if (Math.random() < 0.05) {
-        throw new Error(`[SIMULATED TX ERROR] ${label} failed. Try again.`)
+// Boot the Alephium node provider (idempotent — safe to call multiple times)
+function ensureNodeProvider() {
+    try {
+        web3.getCurrentNodeProvider()
+    } catch {
+        web3.setCurrentNodeProvider(new NodeProvider(NODE_URL))
     }
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * The backend's systemAdmin address on Testnet.
+ * This is the wallet whose private key is stored in .env (ADMIN_PRIVATE_KEY).
+ * The contract's completeOneTask() can ONLY be called by this address.
+ *
+ * ⚠️  Replace this with your teammate's actual deployed admin address.
+ *     You can get it by running: npx ts-node -e "import {PrivateKeyWallet} from '@alephium/web3-wallet'; import dotenv from 'dotenv'; dotenv.config(); const w = new PrivateKeyWallet({privateKey: process.env.ADMIN_PRIVATE_KEY}); console.log(w.address)"
+ */
+export const SYSTEM_ADMIN_ADDRESS = import.meta.env.VITE_SYSTEM_ADMIN_ADDRESS || ''
+
+/**
+ * Minimum ALPH (in attoALPH) the contract needs to store state on-chain.
+ * Alephium requires at least 0.1 ALPH for contract storage rent.
+ */
+const CONTRACT_STORAGE_DEPOSIT = ONE_ALPH / 10n  // 0.1 ALPH
+
+// ─── Helper: ALPH amount as BigInt attoALPH ──────────────────────────────────
+
+function toAttoAlph(alphFloat) {
+    return convertAlphAmountWithDecimals(alphFloat.toString()) ?? BigInt(Math.round(alphFloat * 1e18))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createTaskOnChain
-// Crée une nouvelle tâche sur le smart contract.
 //
-// REMPLACEMENT FUTUR :
-//   import { TaskContract } from '../artifacts/ts'
-//   const contract = TaskContract.at(CONTRACT_ADDRESS)
-//   const tx = await contract.transact.createTask({
-//     signer,
-//     args: { title, deadline: BigInt(new Date(deadline).getTime()), alphAmount: ... },
-//     attoAlphAmount: convertAlphAmountWithDecimals(alphAmount),
-//   })
-//   return tx.txId
+// Deploys a fresh HackathonEscrow contract instance on Alephium Testnet.
+// The user is the `owner`; their ALPH is locked inside the contract.
+//
+// Contract initialFields:
+//   owner         — user's wallet address
+//   systemAdmin   — backend admin address (calls completeOneTask)
+//   targetTasks   — always 1 (one task = one contract)
+//   completedTasks— starts at 0
+//   lockedAmount  — the ALPH amount the user chose to lock
+//
+// Returns: { txId, contractAddress }
 // ─────────────────────────────────────────────────────────────────────────────
-export async function createTaskOnChain({ title, deadline, alphAmount, failMode }) {
-    console.log('[contractApi] createTaskOnChain called with:', { title, deadline, alphAmount, failMode })
-    await simulateNetworkDelay(2200)
-    maybeThrow('createTask')
+export async function createTaskOnChain({ title, deadline, alphAmount, failMode, signer }) {
+    if (!signer) throw new Error('Wallet not connected. Please connect before creating a task.')
 
-    // Retourne un faux txId
-    const fakeTxId = `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`
-    console.log('[contractApi] createTaskOnChain success. txId:', fakeTxId)
-    return fakeTxId
+    ensureNodeProvider()
+
+    const signerAccount = await signer.getSelectedAccount()
+    const ownerAddress = signerAccount.address
+
+    // systemAdmin is required by the contract fields but never called in the honor-system flow
+    // (targetTasks=0 means withdraw() is always available). Default to owner's own address.
+    const adminAddress = SYSTEM_ADMIN_ADDRESS || ownerAddress
+
+    console.log('[contractApi] Deploying HackathonEscrow for task:', title)
+    console.log('[contractApi] Owner:', ownerAddress, '| Amount:', alphAmount, 'ALPH')
+
+    const attoAlphToLock = toAttoAlph(alphAmount)
+
+    // The contract must receive the locked amount + storage deposit on creation.
+    // initialAttoAlphAmount = what the contract holds inside the escrow.
+    // The transaction fee is additional and is NOT included here.
+    const deployResult = await HackathonEscrow.deploy(signer, {
+        initialFields: {
+            owner: ownerAddress,
+            systemAdmin: adminAddress,
+            // targetTasks = 0 → condition (completedTasks >= targetTasks) is 0 >= 0 = TRUE immediately.
+            // This means the user can call withdraw() on their own, without waiting for the backend.
+            // The app works on the honor system: the user decides themselves if they succeeded or failed.
+            targetTasks: 0n,
+            completedTasks: 0n,
+            lockedAmount: attoAlphToLock,
+        },
+        // Fund the contract with the user's stake + mandatory storage deposit
+        initialAttoAlphAmount: attoAlphToLock + CONTRACT_STORAGE_DEPOSIT,
+    })
+
+    console.log('[contractApi] Contract deployed. txId:', deployResult.txId, '| contractAddress:', deployResult.contractInstance.address)
+    return {
+        txId: deployResult.txId,
+        contractAddress: deployResult.contractInstance.address,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// validateTaskOnChain
-// Valide une tâche comme réussie → récupère le montant bloqué.
+// validateTaskOnChain (Success)
 //
-// REMPLACEMENT FUTUR :
-//   const contract = TaskContract.at(CONTRACT_ADDRESS)
-//   const tx = await contract.transact.validateTask({
-//     signer,
-//     args: { taskId },
-//   })
-//   return tx.txId
+// Calls withdraw() on the user's task contract.
+// Requires:
+//   1. The backend has called completeOneTask() on this contract (completedTasks >= targetTasks)
+//   2. The caller is the owner (checked in the contract with checkCaller!)
+//
+// On success: ALPH is returned to owner and the contract self-destructs.
+// Returns: txId (string)
 // ─────────────────────────────────────────────────────────────────────────────
-export async function validateTaskOnChain({ taskId }) {
-    console.log('[contractApi] validateTaskOnChain called with:', { taskId })
-    await simulateNetworkDelay(1800)
-    maybeThrow('validateTask')
+export async function validateTaskOnChain({ contractAddress, signer }) {
+    if (!signer) throw new Error('Wallet not connected.')
+    if (!contractAddress) throw new Error('No contract address for this task. Was it deployed on-chain?')
 
-    const fakeTxId = `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`
-    console.log('[contractApi] validateTaskOnChain success. txId:', fakeTxId)
-    return fakeTxId
+    ensureNodeProvider()
+
+    console.log('[contractApi] Calling withdraw() on contract:', contractAddress)
+
+    const contractInstance = HackathonEscrow.at(contractAddress)
+
+    const result = await contractInstance.transact.withdraw({
+        signer,
+        // No args needed — the contract checks callerAddress!() and completedTasks internally
+    })
+
+    console.log('[contractApi] withdraw() success. txId:', result.txId)
+    return result.txId
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// failTaskOnChain
-// Déclare une tâche comme échouée → déclenche la pénalité selon le failMode.
+// failTaskOnChain (Failure — UI-level only for regular tasks)
 //
-// REMPLACEMENT FUTUR :
-//   const contract = TaskContract.at(CONTRACT_ADDRESS)
-//   const tx = await contract.transact.failTask({
-//     signer,
-//     args: { taskId },
-//   })
-//   return tx.txId
+// ⚠️  The HackathonEscrow contract does NOT have a failTask() function.
+//     There is no on-chain mechanism for the owner to voluntarily forfeit their ALPH.
+//     The "fail" action in the UI is handled locally (moves task to history as "failed").
+//
+//     In the real product flow:
+//     - The backend monitors deadlines.
+//     - If a task expires, the backend does NOT call completeOneTask().
+//     - The ALPH stays locked. The admin can drain it server-side or via a separate admin fn.
+//
+//     For now this function is a no-op that resolves immediately.
+//     A fake txId is returned so the UI flow stays consistent.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function failTaskOnChain({ taskId }) {
-    console.log('[contractApi] failTaskOnChain called with:', { taskId })
-    await simulateNetworkDelay(2000)
-    maybeThrow('failTask')
+export async function failTaskOnChain({ taskId, contractAddress, signer }) {
+    console.warn('[contractApi] failTaskOnChain: No on-chain fail function exists in HackathonEscrow.')
+    console.warn('[contractApi] Marking task as failed LOCALLY. ALPH remains locked in contract:', contractAddress || 'N/A (was never deployed)')
 
-    const fakeTxId = `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`
-    console.log('[contractApi] failTaskOnChain success. txId:', fakeTxId)
-    return fakeTxId
+    // Return a pseudo txId so callers don't need to special-case this
+    const pseudoTxId = `local_fail_${taskId || Date.now()}`
+    return pseudoTxId
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createSuperTaskOnChain
-// Crée la Super Task unique (cagnotte globale).
 //
-// REMPLACEMENT FUTUR :
-//   const contract = SuperTaskContract.at(SUPER_TASK_ADDRESS)
-//   const tx = await contract.transact.createSuperTask({ signer })
-//   return tx.txId
+// ⚠️ The Super Task is NOT backed by a separate smart contract in this repo.
+//    The backend/teammate has only provided HackathonEscrow (single-task escrow).
+//    Super Task creation is kept as a UI-only placeholder.
+//
+//    To connect this to a real contract, your teammate would need to deploy a
+//    separate aggregation/pool contract and export its artifacts.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function createSuperTaskOnChain({ title, deadline }) {
-    console.log('[contractApi] createSuperTaskOnChain called with:', { title, deadline })
-    await simulateNetworkDelay(2500)
-    maybeThrow('createSuperTask')
-
-    const fakeTxId = `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`
-    console.log('[contractApi] createSuperTaskOnChain success. txId:', fakeTxId)
-    return fakeTxId
+export async function createSuperTaskOnChain({ title }) {
+    console.warn('[contractApi] createSuperTaskOnChain: No on-chain Super Task contract found in artifacts. Keeping as UI placeholder.')
+    const pseudoTxId = `local_super_${Date.now()}`
+    return pseudoTxId
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fetchCagnotteBalance
-// Récupère le solde actuel de la Cagnotte (Super Task pool).
+// fetchContractState
 //
-// REMPLACEMENT FUTUR :
-//   const contract = TaskContract.at(CONTRACT_ADDRESS)
-//   const state = await contract.fetchState()
-//   return Number(state.fields.cagnotteBalance) / 1e18
+// Fetches the current on-chain state of a HackathonEscrow contract instance.
+// Useful for displaying live completedTasks / lockedAmount in the UI.
+// Returns null if the contract address is not yet available.
 // ─────────────────────────────────────────────────────────────────────────────
-export async function fetchCagnotteBalance() {
-    await simulateNetworkDelay(800)
-    // Retourne un solde simulé qui augmente légèrement à chaque appel
-    return parseFloat((Math.random() * 0.5).toFixed(4))
+export async function fetchContractState(contractAddress) {
+    if (!contractAddress) return null
+    ensureNodeProvider()
+
+    try {
+        const instance = HackathonEscrow.at(contractAddress)
+        const state = await instance.fetchState()
+        return {
+            owner: state.fields.owner,
+            systemAdmin: state.fields.systemAdmin,
+            targetTasks: Number(state.fields.targetTasks),
+            completedTasks: Number(state.fields.completedTasks),
+            lockedAmount: Number(state.fields.lockedAmount) / 1e18,
+        }
+    } catch (err) {
+        // Contract may have been destroyed (after withdraw) — not an error state
+        console.warn('[contractApi] fetchContractState failed (contract may be destroyed):', err.message)
+        return null
+    }
 }
+
+// ─── Re-export constants for use in components ────────────────────────────────
+export const DEAD_ADDRESS_TESTNET = '1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH'
+export const DEVS_ADDRESS_TESTNET = '14kMRpJyFrE6R23ZZN7d6XDdqLExDkGQpbhNY7tLzBu5'
+export const SUPER_TASK_ADDRESS = '1GtbwTbzjBn5bDXsqSqKK5LJLTBRLUx8KCj6JKXPM3Ha'

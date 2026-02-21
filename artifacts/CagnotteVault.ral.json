@@ -1,0 +1,45 @@
+{
+  "version": "v4.3.1",
+  "name": "CagnotteVault",
+  "bytecode": "02020b402a010000000001d353dbb7aa01020102000ed3ecafcc2fb4ce00451341917bb2a4170116001601a803a100",
+  "codeHash": "97e5652dc6b50209e998a2765c5a09ecd610e3f4a78d6a1b7e341da1ebc689ec",
+  "fieldsSig": {
+    "names": [
+      "admin",
+      "isSuperTaskDone"
+    ],
+    "types": [
+      "Address",
+      "Bool"
+    ],
+    "isMutable": [
+      false,
+      true
+    ]
+  },
+  "eventsSig": [],
+  "functions": [
+    {
+      "name": "deposit",
+      "paramNames": [],
+      "paramTypes": [],
+      "paramIsMutable": [],
+      "returnTypes": []
+    },
+    {
+      "name": "releaseToWinner",
+      "paramNames": [
+        "winner"
+      ],
+      "paramTypes": [
+        "Address"
+      ],
+      "paramIsMutable": [
+        false
+      ],
+      "returnTypes": []
+    }
+  ],
+  "constants": [],
+  "enums": []
+}

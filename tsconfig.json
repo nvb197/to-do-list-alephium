@@ -1,11 +1,38 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
-  }
+    /* Basic Options */
+    "target": "ES2020",                                  /* Specify ECMAScript target version */
+    "module": "commonjs",                                /* Specify module code generation */
+    "lib": ["ES2020", "DOM"],                            /* Specify library files to be included in the compilation */
+    "allowJs": true,                                     /* Allow javascript files to be compiled */
+    "checkJs": false,                                    /* Report errors in .js files */
+    
+    /* JSON Module Support - THIS FIXES YOUR ERROR */
+    "resolveJsonModule": true,                           /* Allows importing modules with a '.json' extension */
+    "allowSyntheticDefaultImports": true,                /* Allow default imports from modules with no default export */
+    "esModuleInterop": true,                             /* Enables emit interoperability between CommonJS and ES Modules */
+
+    /* Strict Type-Checking Options */
+    "strict": true,                                      /* Enable all strict type-checking options */
+    "noImplicitAny": false,                              /* Raise error on expressions and declarations with an implied 'any' type */
+    "skipLibCheck": true,                                /* Skip type checking of declaration files */
+    "forceConsistentCasingInFileNames": true,            /* Disallow inconsistently-cased references to the same file */
+
+    /* Module Resolution Options */
+    "moduleResolution": "node",                          /* Specify module resolution strategy */
+    "baseUrl": "./",                                     /* Base directory to resolve non-absolute module names */
+    "outDir": "./dist",                                  /* Redirect output structure to the directory */
+    "rootDir": "./",                                     /* Specify the root directory of input files */
+    
+    /* Experimental Options */
+    "experimentalDecorators": true,                      /* Enables experimental support for ES7 decorators */
+    "emitDecoratorMetadata": true                        /* Enables experimental support for emitting design-type metadata for decorators */
+  },
+  "include": [
+    "**/*.ts",
+    "artifacts/ts/**/*.ts"                               /* Ensure auto-generated TS files are included */
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

@@ -1,0 +1,18 @@
+// Community Pool for failed tasks
+Contract CagnotteVault(
+    admin: Address,
+    mut isSuperTaskDone: Bool
+) {
+    pub fn deposit() -> () { 
+        // ALPH is received automatically
+    }
+
+    @using(assetsInContract = true, updateFields = true)
+    pub fn releaseToWinner(winner: Address) -> () {
+        checkCaller!(callerAddress!() == admin, 401)
+ 
+        let amount = tokenRemaining!(selfAddress!(), ALPH)
+        transferTokenFromSelf!(winner, ALPH, amount)
+        isSuperTaskDone = true
+    }
+}

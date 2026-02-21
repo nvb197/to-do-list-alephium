@@ -12,9 +12,15 @@ import {
   HexString,
 } from "@alephium/web3";
 import { getContractByCodeHash } from "./contracts";
-import { default as CompleteTaskScriptScriptJson } from "../CompleteTaskScript.ral.json";
+import { default as ForfeitScriptScriptJson } from "../ForfeitScript.ral.json";
+import { default as WithdrawScriptScriptJson } from "../WithdrawScript.ral.json";
 
-export const CompleteTaskScript = new ExecutableScript<{ escrow: HexString }>(
-  Script.fromJson(CompleteTaskScriptScriptJson, "", []),
+export const ForfeitScript = new ExecutableScript<{ escrow: HexString }>(
+  Script.fromJson(ForfeitScriptScriptJson, "", []),
+  getContractByCodeHash
+);
+
+export const WithdrawScript = new ExecutableScript<{ escrow: HexString }>(
+  Script.fromJson(WithdrawScriptScriptJson, "", []),
   getContractByCodeHash
 );

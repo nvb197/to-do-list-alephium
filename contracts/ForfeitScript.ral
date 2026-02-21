@@ -1,0 +1,4 @@
+// Frontend uses this when user clicks "I failed"
+TxScript ForfeitScript(escrow: HackathonEscrow) {
+    escrow.forfeit()
+}

@@ -1,14 +1,9 @@
 import { Configuration } from '@alephium/cli'
 import * as dotenv from 'dotenv'
-import { join } from 'path'
 
 dotenv.config()
 
 const configuration: Configuration<any> = {
-  // Sử dụng join và __dirname để tạo đường dẫn tuyệt đối chuẩn Windows
-  contractsDir: join(__dirname, 'contracts'),
-  artifactsDir: join(__dirname, 'artifacts'),
-
   networks: {
     testnet: {
       nodeUrl: 'https://node.testnet.alephium.org',

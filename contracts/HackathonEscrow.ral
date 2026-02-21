@@ -1,27 +1,25 @@
 Contract HackathonEscrow(
-    owner: Address,             // User's wallet
-    systemAdmin: Address,       // Backend's wallet
-    targetTasks: U256,      
-    mut completedTasks: U256,   
-    lockedAmount: U256       
+    owner: Address,
+    lockedAmount: U256,
+    beneficiary: Address
 ) {
-    event TaskCompleted(count: U256)
-    event FundsReleased(to: Address, amount: U256)
+    event TaskFinished(owner: Address, status: U256)
 
-    @using(updateFields = true)
-    pub fn completeOneTask() -> () {
-        checkCaller!(callerAddress!() == systemAdmin, 401)
-        completedTasks = completedTasks + 1
-        emit TaskCompleted(completedTasks)
-    }
-
+    // User clicks "Success" to get money back
     @using(assetsInContract = true)
     pub fn withdraw() -> () {
-        checkCaller!(callerAddress!() == owner, 403) 
-        assert!(completedTasks >= targetTasks, 404)  
-
+        checkCaller!(callerAddress!() == owner, 401)
         transferTokenFromSelf!(owner, ALPH, lockedAmount)
-        emit FundsReleased(owner, lockedAmount)
+        emit TaskFinished(owner, 1)
+        destroySelf!(owner)
+    }
+
+    // User clicks "Fail" to send money to penalty
+    @using(assetsInContract = true)
+    pub fn forfeit() -> () {
+        checkCaller!(callerAddress!() == owner, 401)
+        transferTokenFromSelf!(beneficiary, ALPH, lockedAmount)
+        emit TaskFinished(owner, 0)
         destroySelf!(owner)
     }
 }

@@ -1,3 +1,4 @@
-TxScript CompleteTaskScript(escrow: HackathonEscrow) {
-    escrow.completeOneTask()
+// Frontend uses this when user clicks "I did it!"
+TxScript WithdrawScript(escrow: HackathonEscrow) {
+    escrow.withdraw()
 }

@@ -33,31 +33,25 @@ import {
   encodeContractFields,
   Narrow,
 } from "@alephium/web3";
-import { default as HackathonEscrowContractJson } from "../HackathonEscrow.ral.json";
+import { default as CagnotteVaultContractJson } from "../CagnotteVault.ral.json";
 import { getContractByCodeHash, registerContract } from "./contracts";
 
 // Custom types for the contract
-export namespace HackathonEscrowTypes {
+export namespace CagnotteVaultTypes {
   export type Fields = {
-    owner: Address;
-    lockedAmount: bigint;
-    beneficiary: Address;
+    admin: Address;
+    isSuperTaskDone: boolean;
   };
 
   export type State = ContractState<Fields>;
 
-  export type TaskFinishedEvent = ContractEvent<{
-    owner: Address;
-    status: bigint;
-  }>;
-
   export interface CallMethodTable {
-    withdraw: {
+    deposit: {
       params: Omit<CallContractParams<{}>, "args">;
       result: CallContractResult<null>;
     };
-    forfeit: {
-      params: Omit<CallContractParams<{}>, "args">;
+    releaseToWinner: {
+      params: CallContractParams<{ winner: Address }>;
       result: CallContractResult<null>;
     };
   }
@@ -78,12 +72,12 @@ export namespace HackathonEscrowTypes {
   };
 
   export interface SignExecuteMethodTable {
-    withdraw: {
+    deposit: {
       params: Omit<SignExecuteContractMethodParams<{}>, "args">;
       result: SignExecuteScriptTxResult;
     };
-    forfeit: {
-      params: Omit<SignExecuteContractMethodParams<{}>, "args">;
+    releaseToWinner: {
+      params: SignExecuteContractMethodParams<{ winner: Address }>;
       result: SignExecuteScriptTxResult;
     };
   }
@@ -94,10 +88,10 @@ export namespace HackathonEscrowTypes {
 }
 
 class Factory extends ContractFactory<
-  HackathonEscrowInstance,
-  HackathonEscrowTypes.Fields
+  CagnotteVaultInstance,
+  CagnotteVaultTypes.Fields
 > {
-  encodeFields(fields: HackathonEscrowTypes.Fields) {
+  encodeFields(fields: CagnotteVaultTypes.Fields) {
     return encodeContractFields(
       addStdIdToFields(this.contract, fields),
       this.contract.fieldsSig,
@@ -105,33 +99,31 @@ class Factory extends ContractFactory<
     );
   }
 
-  eventIndex = { TaskFinished: 0 };
-
-  at(address: string): HackathonEscrowInstance {
-    return new HackathonEscrowInstance(address);
+  at(address: string): CagnotteVaultInstance {
+    return new CagnotteVaultInstance(address);
   }
 
   tests = {
-    withdraw: async (
+    deposit: async (
       params: Omit<
-        TestContractParamsWithoutMaps<HackathonEscrowTypes.Fields, never>,
+        TestContractParamsWithoutMaps<CagnotteVaultTypes.Fields, never>,
         "args"
       >
     ): Promise<TestContractResultWithoutMaps<null>> => {
-      return testMethod(this, "withdraw", params, getContractByCodeHash);
+      return testMethod(this, "deposit", params, getContractByCodeHash);
     },
-    forfeit: async (
-      params: Omit<
-        TestContractParamsWithoutMaps<HackathonEscrowTypes.Fields, never>,
-        "args"
+    releaseToWinner: async (
+      params: TestContractParamsWithoutMaps<
+        CagnotteVaultTypes.Fields,
+        { winner: Address }
       >
     ): Promise<TestContractResultWithoutMaps<null>> => {
-      return testMethod(this, "forfeit", params, getContractByCodeHash);
+      return testMethod(this, "releaseToWinner", params, getContractByCodeHash);
     },
   };
 
   stateForTest(
-    initFields: HackathonEscrowTypes.Fields,
+    initFields: CagnotteVaultTypes.Fields,
     asset?: Asset,
     address?: string
   ) {
@@ -140,78 +132,63 @@ class Factory extends ContractFactory<
 }
 
 // Use this object to test and deploy the contract
-export const HackathonEscrow = new Factory(
+export const CagnotteVault = new Factory(
   Contract.fromJson(
-    HackathonEscrowContractJson,
+    CagnotteVaultContractJson,
     "",
-    "0aa54baa43d0ef4cfc7ed8f7a43dd5986af2bf42a1d01ac6ecc576e0677b63c2",
+    "97e5652dc6b50209e998a2765c5a09ecd610e3f4a78d6a1b7e341da1ebc689ec",
     []
   )
 );
-registerContract(HackathonEscrow);
+registerContract(CagnotteVault);
 
 // Use this class to interact with the blockchain
-export class HackathonEscrowInstance extends ContractInstance {
+export class CagnotteVaultInstance extends ContractInstance {
   constructor(address: Address) {
     super(address);
   }
 
-  async fetchState(): Promise<HackathonEscrowTypes.State> {
-    return fetchContractState(HackathonEscrow, this);
-  }
-
-  async getContractEventsCurrentCount(): Promise<number> {
-    return getContractEventsCurrentCount(this.address);
-  }
-
-  subscribeTaskFinishedEvent(
-    options: EventSubscribeOptions<HackathonEscrowTypes.TaskFinishedEvent>,
-    fromCount?: number
-  ): EventSubscription {
-    return subscribeContractEvent(
-      HackathonEscrow.contract,
-      this,
-      options,
-      "TaskFinished",
-      fromCount
-    );
+  async fetchState(): Promise<CagnotteVaultTypes.State> {
+    return fetchContractState(CagnotteVault, this);
   }
 
   view = {
-    withdraw: async (
-      params?: HackathonEscrowTypes.CallMethodParams<"withdraw">
-    ): Promise<HackathonEscrowTypes.CallMethodResult<"withdraw">> => {
+    deposit: async (
+      params?: CagnotteVaultTypes.CallMethodParams<"deposit">
+    ): Promise<CagnotteVaultTypes.CallMethodResult<"deposit">> => {
       return callMethod(
-        HackathonEscrow,
+        CagnotteVault,
         this,
-        "withdraw",
+        "deposit",
         params === undefined ? {} : params,
         getContractByCodeHash
       );
     },
-    forfeit: async (
-      params?: HackathonEscrowTypes.CallMethodParams<"forfeit">
-    ): Promise<HackathonEscrowTypes.CallMethodResult<"forfeit">> => {
+    releaseToWinner: async (
+      params: CagnotteVaultTypes.CallMethodParams<"releaseToWinner">
+    ): Promise<CagnotteVaultTypes.CallMethodResult<"releaseToWinner">> => {
       return callMethod(
-        HackathonEscrow,
+        CagnotteVault,
         this,
-        "forfeit",
-        params === undefined ? {} : params,
+        "releaseToWinner",
+        params,
         getContractByCodeHash
       );
     },
   };
 
   transact = {
-    withdraw: async (
-      params: HackathonEscrowTypes.SignExecuteMethodParams<"withdraw">
-    ): Promise<HackathonEscrowTypes.SignExecuteMethodResult<"withdraw">> => {
-      return signExecuteMethod(HackathonEscrow, this, "withdraw", params);
+    deposit: async (
+      params: CagnotteVaultTypes.SignExecuteMethodParams<"deposit">
+    ): Promise<CagnotteVaultTypes.SignExecuteMethodResult<"deposit">> => {
+      return signExecuteMethod(CagnotteVault, this, "deposit", params);
     },
-    forfeit: async (
-      params: HackathonEscrowTypes.SignExecuteMethodParams<"forfeit">
-    ): Promise<HackathonEscrowTypes.SignExecuteMethodResult<"forfeit">> => {
-      return signExecuteMethod(HackathonEscrow, this, "forfeit", params);
+    releaseToWinner: async (
+      params: CagnotteVaultTypes.SignExecuteMethodParams<"releaseToWinner">
+    ): Promise<
+      CagnotteVaultTypes.SignExecuteMethodResult<"releaseToWinner">
+    > => {
+      return signExecuteMethod(CagnotteVault, this, "releaseToWinner", params);
     },
   };
 }

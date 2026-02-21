@@ -12,17 +12,29 @@
     "skipTests": false
   },
   "infos": {
-    "CompleteTaskScript": {
-      "sourceFile": "CompleteTaskScript.ral",
-      "sourceCodeHash": "e16654904e5c08ce3960af467e981be78d88ceeff433cbbd212784f9866c32cd",
+    "CagnotteVault": {
+      "sourceFile": "CagnotteVault.ral",
+      "sourceCodeHash": "6869b7c7a4e3806179eed6a063ad083dbdbaa9da5583edd071cdaed16453cab0",
+      "bytecodeDebugPatch": "",
+      "codeHashDebug": "97e5652dc6b50209e998a2765c5a09ecd610e3f4a78d6a1b7e341da1ebc689ec"
+    },
+    "ForfeitScript": {
+      "sourceFile": "ForfeitScript.ral",
+      "sourceCodeHash": "e540ddd90edb83fd486409f2a6416390eee1aa5d2942fa90c9c75d0fb7a76875",
       "bytecodeDebugPatch": "",
       "codeHashDebug": ""
     },
     "HackathonEscrow": {
       "sourceFile": "HackathonEscrow.ral",
-      "sourceCodeHash": "0849e2b17a2eca2f1b43a8137f7263c4bfb41a4123c629a5873fb5b498ed0f44",
+      "sourceCodeHash": "1e50a3dbb2fcc94a0d21a10d24bee4879cbb0e7081247318f9061888238f06a3",
       "bytecodeDebugPatch": "",
-      "codeHashDebug": "554ce71ac667ec362f6fb77b751e695b006a7820148f7c9a4f6ed54e87c41be3"
+      "codeHashDebug": "0aa54baa43d0ef4cfc7ed8f7a43dd5986af2bf42a1d01ac6ecc576e0677b63c2"
+    },
+    "WithdrawScript": {
+      "sourceFile": "CompleteTaskScript.ral",
+      "sourceCodeHash": "6b8ca14bfaf4bd1400e04e4daf6518988bd4fb8f7521d7e04a38b1bb40a88217",
+      "bytecodeDebugPatch": "",
+      "codeHashDebug": ""
     }
   }
 }

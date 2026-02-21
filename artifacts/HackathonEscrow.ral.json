@@ -1,46 +1,31 @@
 {
   "version": "v4.3.1",
   "name": "HackathonEscrow",
-  "bytecode": "05021d404701000000000dd31e52e760b4ce01451341917ba0000d2aa10005a0005e010200000014d3a248861cb4ce00451341937ba000ce02341341947bce00ce03a806ce00ce035fce00b0",
-  "codeHash": "554ce71ac667ec362f6fb77b751e695b006a7820148f7c9a4f6ed54e87c41be3",
+  "bytecode": "03024020404001020000000fd3a248861cb4ce00451341917bce00ce01a805ce000d5fce00b001020000000fd363a792c1b4ce00451341917bce02ce01a805ce000c5fce00b0",
+  "codeHash": "0aa54baa43d0ef4cfc7ed8f7a43dd5986af2bf42a1d01ac6ecc576e0677b63c2",
   "fieldsSig": {
     "names": [
       "owner",
-      "systemAdmin",
-      "targetTasks",
-      "completedTasks",
-      "lockedAmount"
+      "lockedAmount",
+      "beneficiary"
     ],
     "types": [
       "Address",
-      "Address",
       "U256",
-      "U256",
-      "U256"
+      "Address"
     ],
     "isMutable": [
       false,
       false,
-      false,
-      true,
       false
     ]
   },
   "eventsSig": [
     {
-      "name": "TaskCompleted",
+      "name": "TaskFinished",
       "fieldNames": [
-        "count"
-      ],
-      "fieldTypes": [
-        "U256"
-      ]
-    },
-    {
-      "name": "FundsReleased",
-      "fieldNames": [
-        "to",
-        "amount"
+        "owner",
+        "status"
       ],
       "fieldTypes": [
         "Address",
@@ -50,14 +35,14 @@
   ],
   "functions": [
     {
-      "name": "completeOneTask",
+      "name": "withdraw",
       "paramNames": [],
       "paramTypes": [],
       "paramIsMutable": [],
       "returnTypes": []
     },
     {
-      "name": "withdraw",
+      "name": "forfeit",
       "paramNames": [],
       "paramTypes": [],
       "paramIsMutable": [],

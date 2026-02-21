@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export * from "./CagnotteVault";
 export * from "./HackathonEscrow";
 export * from "./contracts";
 export * from "./scripts";

@@ -1,0 +1,28 @@
+{
+  "fullNodeVersion": "v4.3.1",
+  "compilerOptionsUsed": {
+    "ignoreUnusedConstantsWarnings": false,
+    "ignoreUnusedVariablesWarnings": false,
+    "ignoreUnusedFieldsWarnings": false,
+    "ignoreUnusedPrivateFunctionsWarnings": false,
+    "ignoreUpdateFieldsCheckWarnings": false,
+    "ignoreCheckExternalCallerWarnings": false,
+    "ignoreUnusedFunctionReturnWarnings": false,
+    "skipAbstractContractCheck": false,
+    "skipTests": false
+  },
+  "infos": {
+    "CompleteTaskScript": {
+      "sourceFile": "CompleteTaskScript.ral",
+      "sourceCodeHash": "e16654904e5c08ce3960af467e981be78d88ceeff433cbbd212784f9866c32cd",
+      "bytecodeDebugPatch": "",
+      "codeHashDebug": ""
+    },
+    "HackathonEscrow": {
+      "sourceFile": "HackathonEscrow.ral",
+      "sourceCodeHash": "0849e2b17a2eca2f1b43a8137f7263c4bfb41a4123c629a5873fb5b498ed0f44",
+      "bytecodeDebugPatch": "",
+      "codeHashDebug": "554ce71ac667ec362f6fb77b751e695b006a7820148f7c9a4f6ed54e87c41be3"
+    }
+  }
+}

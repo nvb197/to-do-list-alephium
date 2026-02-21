@@ -1,0 +1,3 @@
+TxScript CompleteTaskScript(escrow: HackathonEscrow) {
+    escrow.completeOneTask()
+}

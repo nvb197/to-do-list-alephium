@@ -1,0 +1,25 @@
+{
+  "version": "v4.3.1",
+  "name": "CompleteTaskScript",
+  "bytecodeTemplate": "010103000000040c0c{0}0100",
+  "fieldsSig": {
+    "names": [
+      "escrow"
+    ],
+    "types": [
+      "HackathonEscrow"
+    ],
+    "isMutable": [
+      false
+    ]
+  },
+  "functions": [
+    {
+      "name": "main",
+      "paramNames": [],
+      "paramTypes": [],
+      "paramIsMutable": [],
+      "returnTypes": []
+    }
+  ]
+}
